@@ -1,0 +1,276 @@
+---
+title: "JCAPE figures"
+author: "Michelle A. Briggs"
+date: "2026-10-19"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(ggpubr)
+library(lme4)
+library(lmerTest)
+library(effects)
+```
+
+
+```{r}
+plot_theme <- theme(panel.background = element_rect(fill = "white", color = "white"), 
+                     panel.grid.major = element_blank(), 
+                     panel.grid.minor = element_blank(), 
+                     plot.background = element_rect(fill = "white"), 
+                     axis.line = element_line(color = "black", linewidth = 1), 
+                     axis.ticks = element_line(color = "black", linewidth = 1), 
+                     axis.minor.ticks.length = rel(0.75),
+                     axis.text = element_text(size = 15, color = "black"), 
+                     axis.title = element_text(size = 20, color = "black"), 
+                     text = element_text(size = 20), 
+                     plot.title = element_text(size = 20), 
+                     axis.text.x = element_text(margin = margin(t = 10)),
+                     axis.text.y = element_text(margin = margin(r = 5)), 
+                     plot.margin = unit(c(5, 8, 5, 5), "mm"), 
+                     legend.text = element_text(size = 12), 
+                     legend.background = element_rect(fill = "white", color = "white"),
+                     legend.key = element_rect(fill = "white", color = "white"),
+                     axis.ticks.length = unit(0.3, "cm"), 
+                     strip.background = element_rect(fill = "grey", color = "black"), 
+                     panel.spacing = unit(3, "mm"))
+```
+
+
+```{r}
+#read in data for figure 2, broodstock and juvenile releases
+
+brood_releases <- read_xlsx("data/Data needed - JCAPE.xlsx", sheet = "Main Body Figure 2")
+
+juv_release <- brood_releases[, 1:5]
+broodstock <- brood_releases[, 7:10]
+
+colnames(juv_release) <- c("year", "group", "lifestage", "origin", "abundance")
+
+table(juv_release$lifestage)
+table(juv_release$origin)
+table(juv_release$group)
+
+juv_release_summary <- juv_release %>%
+  group_by(year) %>%
+  summarise(abundance = sum(abundance))
+
+juv_release_plot <- ggplot(juv_release_summary, aes(x = year, y = abundance)) + 
+  geom_bar(stat = "identity", fill = "#0d0887", color = "black", width = 0.7) + 
+  plot_theme + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 150000)) + 
+  scale_x_continuous(expand = c(0, 0), limits = c(1997, 2025), breaks = seq(1998, 2024, 2),
+                     guide = guide_axis(minor.ticks = TRUE)) +
+  ylab("Juvenile releases") + 
+  xlab("Year")
+
+head(broodstock)
+colnames(broodstock) <- c("year", "hat_brood", "nat_brood", "total_brood")
+
+broodstock_plot <- ggplot(broodstock, aes(x = year, y = total_brood)) + 
+  geom_bar(stat = "identity", fill = "#0d0887", color = "black", width = 0.7) + 
+  plot_theme + 
+  xlab("Year") + 
+  ylab("Broodstock collected") + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 150)) + 
+  scale_x_continuous(expand = c(0, 0), limits = c(1997, 2025), breaks = seq(1998, 2024, 2),
+                     guide = guide_axis(minor.ticks = TRUE)) 
+
+ggarrange(broodstock_plot + ggtitle("A"), juv_release_plot + ggtitle("B"), 
+         align = "hv", ncol = 1)  
+```
+
+
+```{r}
+rtn_rate <- read_xlsx("data/Data needed - JCAPE.xlsx", sheet = "Main Body Figure 3")
+
+head(rtn_rate)
+colnames(rtn_rate) <- c("broodyear", "origin", "progeny_parent", "lcl", "ucl")
+
+rtn_rate_plot <- ggplot(rtn_rate, aes(x = broodyear, y = progeny_parent, group = origin)) + 
+  geom_errorbar(aes(ymin = lcl, ymax = ucl, color = origin), width = 0.1, position = position_dodge(width = 0.1), linewidth = 1) +
+  geom_line(aes(color = origin), linewidth = 1) +
+  geom_point(aes(fill = origin), size = 5, shape = 21, position = position_dodge(width = 0.1)) + 
+  plot_theme + 
+  ylab("Parent to progeny ratio") + 
+  xlab("Brood year") + 
+  scale_y_continuous(limits = c(0, 16), expand = c(0, 0)) + 
+  scale_x_continuous(expand = c(0, 0), limits = c(1997, 2016), breaks = seq(1998, 2024, 2),
+                     guide = guide_axis(minor.ticks = TRUE)) + 
+  scale_fill_manual(values = c("#5ec962", "#3b528b"), name = "Origin") + 
+  scale_color_manual(values = c("#5ec962", "#3b528b"), name = "Origin")
+
+#not sure if we want to keep the line connecting the time series
+```
+
+
+```{r}
+escapement <- read_xlsx("data/Data needed - JCAPE.xlsx", sheet = "Main Body Figure 4")
+
+head(escapement)
+colnames(escapement) <- c("year", "escapement", "lcl", "ucl", "comment")
+```
+
+
+```{r}
+nosa <- read_xlsx("data/Data needed - JCAPE.xlsx", sheet = "Main Body Figure 5", skip = 2)
+head(nosa)
+
+colnames(nosa) <- c("population", "waterbody", "year", "agency", "method", "nosaij", "lcl", "ucl")
+
+table(nosa$waterbody)
+table(nosa$population)
+
+nosa <- nosa %>%
+  mutate(treatment = if_else(waterbody == "Johnson Creek", "treatment", "control"), 
+         time = if_else(year <= 2000, "pre", 
+                        if_else(year >= 2006, "post", "interim"))) %>%
+  group_by(population) %>%
+  mutate(nosa_scaled = scale(nosaij))
+
+
+#plot nosaij for Johnson Creek
+jc_plot <- nosa %>%
+  filter(waterbody == "Johnson Creek") %>%
+  mutate(time = fct_relevel(time, "post", after = 2), 
+         time = fct_relevel(time, "interim", after = 1)) %>%
+  ggplot(aes(x = year, y = nosaij)) + 
+  geom_errorbar(aes(ymin = lcl, ymax = ucl, color = time), width = 0.1, linewidth = 0.75) + 
+  geom_line(linewidth = 0.75) +
+  geom_point(size = 5, shape = 21, aes(fill = time)) + 
+  plot_theme + 
+  scale_x_continuous(limits = c(1986, 2020), breaks = seq(1985, 2020, 5), 
+                     minor_breaks = seq(1985, 2020, 1),
+                     expand = c(0, 0),
+                     guide = guide_axis(minor.ticks = TRUE)) + 
+  scale_y_continuous(limits = c(0, 1200)) + 
+  xlab("Year") + 
+  ylab("NOSAij") + 
+  scale_fill_viridis_d(name = "Period", labels = c("Pre supplementation", "Early supplementation", "Post supplementation")) + 
+  scale_color_viridis_d(name = "Period", labels = c("Pre supplementation", "Early supplementation", "Post supplementation"))
+
+#plot raw NOSA for all streams
+nosa_raw_plot <- ggplot(nosa, aes(x = year, y = nosaij)) + 
+  geom_line(aes(color = waterbody, linetype = treatment, alpha = treatment), linewidth = 1) + 
+  plot_theme + 
+  scale_x_continuous(limits = c(1986, 2025), breaks = seq(1985, 2025, 5), 
+                     minor_breaks = seq(1985, 2025, 1),
+                     expand = c(0, 0),
+                     guide = guide_axis(minor.ticks = TRUE)) +
+  scale_y_continuous(limits = c(0, 1500), expand = c(0, 0)) + 
+  scale_linetype_manual(values = c(2, 1), name = "Treatment") + 
+  scale_alpha_manual(values = c(0.5, 1), name = "Treatment") + 
+  scale_color_viridis_d(name = "Population") + 
+  xlab("Spawn year") + 
+  ylab("Natural origin spawner abundance")
+
+#plot scaled NOSA for all streams
+nosa_scaled_plot <- ggplot(nosa, aes(x = year, y = nosa_scaled, group = waterbody)) + 
+  geom_line(aes(color = treatment, alpha = treatment, linetype = treatment), linewidth = 1) + 
+  plot_theme + 
+  scale_x_continuous(limits = c(1986, 2025), breaks = seq(1985, 2025, 5), 
+                     minor_breaks = seq(1985, 2025, 1),
+                     expand = c(0, 0),
+                     guide = guide_axis(minor.ticks = TRUE)) +
+  scale_y_continuous(limits = c(-2, 3), expand = c(0, 0)) + 
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 1) + 
+  scale_linetype_manual(values = c(2, 1), name = "Treatment", labels = c("Control", "Treatment")) + 
+  scale_alpha_manual(values = c(0.6, 1), name = "Treatment", labels = c("Control", "Treatment")) + 
+  scale_color_manual(values = c("#5ec962", "#3b528b"), name = "Treatment", labels = c("Control", "Treatment")) + 
+  ylab("Scaled NOSA") + 
+  xlab("Year") + 
+  geom_vline(xintercept = 1998, linetype = "dashed", color = "grey30") + 
+  geom_vline(xintercept = 2006, linetype = "dashed", color = "grey30")
+
+#scaled NOSA with points and median
+nosa_scaled_plot_2 <- ggplot(nosa, aes(x = year, y = nosa_scaled, group = waterbody)) + 
+  geom_hline(yintercept = 0, linewidth = 1) + 
+  geom_point(aes(color = treatment), size = 4, alpha = 0.3) + 
+  stat_summary(fun = median, geom = "line", aes(group = treatment, color = treatment), linewidth = 1) +
+  plot_theme +
+  scale_x_continuous(limits = c(1986, 2025), breaks = seq(1985, 2025, 5), 
+                     minor_breaks = seq(1985, 2025, 1),
+                     expand = c(0, 0),
+                     guide = guide_axis(minor.ticks = TRUE)) +
+  scale_y_continuous(limits = c(-2, 3), expand = c(0, 0)) + 
+  scale_color_manual(values = c("#5ec962", "#3b528b"), name = "Treatment", labels = c("Control", "Johnson Creek")) + 
+  ylab("Scaled NOSA") + 
+  xlab("Year") + 
+  geom_vline(xintercept = 1998, linetype = "dashed", color = "grey30", linewidth = 1) + 
+  geom_vline(xintercept = 2006, linetype = "dashed", color = "grey30", linewidth = 1)
+
+```
+
+
+
+```{r}
+hist(nosa$nosaij)
+hist(log(nosa$nosaij))
+hist(nosa$nosa_scaled)
+
+#analyze log-transformed nosaij
+
+baci_dat <- nosa %>%
+  filter(time != "interim") %>%
+  filter(year >= 1987 & year <= 2018) %>% #filter to years with data for JC
+  mutate(log_nosa = log(nosaij+1))
+
+lmm.1 <- lmer(log_nosa ~ treatment * time + (1|waterbody), data = baci_dat)
+summary(lmm.1)
+
+lmm.2 <- lmer(log_nosa ~ time*treatment + (1|waterbody+year), data = baci_dat)
+summary(lmm.2)
+
+
+baci_summary <- baci_dat %>%
+  group_by(treatment, time) %>%
+  summarise(mean = mean(nosaij, na.rm = T), se = (sd(nosaij, na.rm = T)/sqrt(length(nosaij))))
+
+#mean by group and time period
+#add confidence intervals
+baci_summary %>%
+  mutate(time = as.factor(time)) %>%
+  mutate(time = fct_relevel(time, "post", after = 1)) %>%
+  ggplot(aes(x = time, y = mean)) + 
+  geom_errorbar(aes(ymin = mean-se, ymax = mean+se, color = treatment), linewidth = 1, width = 0.1, position = position_dodge(width = 0.2)) + 
+  geom_point(aes(fill = treatment), shape = 21, size = 5, position = position_dodge(width = 0.2)) + 
+  plot_theme + 
+  scale_color_manual(values = c("#5ec962", "#3b528b"), name = "Treatment", labels = c("Control", "Johnson Creek")) + 
+  scale_fill_manual(values = c("#5ec962", "#3b528b"), name = "Treatment", labels = c("Control", "Johnson Creek")) + 
+  ylab("Mean NOSAij") + 
+  xlab("Time") + 
+  scale_x_discrete(labels = c("Pre", "Post")) + 
+  scale_y_continuous(limits = c(0, 600), expand = c(0, 0))
+
+
+#plot predicted model output
+lmm_predict <- predict(lmm.2, newdata = baci_summary[, 1:2], re.form = NA, se.fit = T)
+baci_summary <- cbind(baci_summary, lmm_predict)
+
+baci_summary <- baci_summary %>%
+  mutate(fit.lcl = fit - 1.96*se.fit, 
+         fit.ucl = fit + 1.96*se.fit)
+
+baci_summary %>%
+  mutate(time = as.factor(time)) %>%
+  mutate(time = fct_relevel(time, "post", after = 1)) %>%
+  ggplot(aes(x = time, y = exp(fit))) + 
+  geom_errorbar(aes(ymin = exp(fit - 1.96*se.fit), ymax = exp(fit + 1.96*se.fit), color = treatment), linewidth = 1, width = 0.1, position = position_dodge(width = 0.2)) + 
+  geom_point(aes(fill = treatment), shape = 21, size = 5, position = position_dodge(width = 0.2)) + 
+  plot_theme + 
+  scale_color_manual(values = c("#5ec962", "#3b528b"), name = "Treatment", labels = c("Control", "Johnson Creek")) + 
+  scale_fill_manual(values = c("#5ec962", "#3b528b"), name = "Treatment", labels = c("Control", "Johnson Creek")) + 
+  ylab("Predicted NOSAij") + 
+  xlab("Time") + 
+  scale_x_discrete(labels = c("Pre", "Post"))
+```
+
