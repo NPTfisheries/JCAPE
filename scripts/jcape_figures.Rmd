@@ -65,7 +65,7 @@ juv_release_summary <- juv_release %>%
   summarise(abundance = sum(abundance))
 
 juv_release_plot <- ggplot(juv_release_summary, aes(x = year, y = abundance)) + 
-  geom_bar(stat = "identity", fill = "#0d0887", color = "black", width = 0.7) + 
+  geom_bar(stat = "identity", fill = "#3b528b", color = "black", width = 0.7) + 
   plot_theme + 
   scale_y_continuous(expand = c(0, 0), limits = c(0, 150000)) + 
   scale_x_continuous(expand = c(0, 0), limits = c(1997, 2025), breaks = seq(1998, 2024, 2),
@@ -77,7 +77,7 @@ head(broodstock)
 colnames(broodstock) <- c("year", "hat_brood", "nat_brood", "total_brood")
 
 broodstock_plot <- ggplot(broodstock, aes(x = year, y = total_brood)) + 
-  geom_bar(stat = "identity", fill = "#0d0887", color = "black", width = 0.7) + 
+  geom_bar(stat = "identity", fill = "#3b528b", color = "black", width = 0.7) + 
   plot_theme + 
   xlab("Year") + 
   ylab("Broodstock collected") + 
@@ -85,8 +85,9 @@ broodstock_plot <- ggplot(broodstock, aes(x = year, y = total_brood)) +
   scale_x_continuous(expand = c(0, 0), limits = c(1997, 2025), breaks = seq(1998, 2024, 2),
                      guide = guide_axis(minor.ticks = TRUE)) 
 
-ggarrange(broodstock_plot + ggtitle("A"), juv_release_plot + ggtitle("B"), 
-         align = "hv", ncol = 1)  
+# ggarrange(broodstock_plot + ggtitle("A") + rremove("xlab"), juv_release_plot + ggtitle("B"), 
+#          align = "hv", ncol = 1)  %>%
+  ggexport(filename = "figures/fig_2_broodstock_releases.jpeg", res = 300, height = 3000, width = 4000)
 ```
 
 
@@ -110,6 +111,8 @@ rtn_rate_plot <- ggplot(rtn_rate, aes(x = broodyear, y = progeny_parent, group =
   scale_color_manual(values = c("#5ec962", "#3b528b"), name = "Origin")
 
 #not sure if we want to keep the line connecting the time series
+
+# ggexport(rtn_rate_plot, filename = "figures/fig_3_parent_progeny.jpeg", res = 300, width = 3000, height = 2000)
 ```
 
 
@@ -139,6 +142,7 @@ nosa <- nosa %>%
 
 
 #plot nosaij for Johnson Creek
+#probably change the colors here
 jc_plot <- nosa %>%
   filter(waterbody == "Johnson Creek") %>%
   mutate(time = fct_relevel(time, "post", after = 2), 
@@ -158,6 +162,8 @@ jc_plot <- nosa %>%
   scale_fill_viridis_d(name = "Period", labels = c("Pre supplementation", "Early supplementation", "Post supplementation")) + 
   scale_color_viridis_d(name = "Period", labels = c("Pre supplementation", "Early supplementation", "Post supplementation"))
 
+#ggexport(jc_plot, filename = "figures/fig_4_johnsc_nosa.jpeg", res = 300, width = 3500, height = 2000)
+
 #plot raw NOSA for all streams
 nosa_raw_plot <- ggplot(nosa, aes(x = year, y = nosaij)) + 
   geom_line(aes(color = waterbody, linetype = treatment, alpha = treatment), linewidth = 1) + 
@@ -167,11 +173,13 @@ nosa_raw_plot <- ggplot(nosa, aes(x = year, y = nosaij)) +
                      expand = c(0, 0),
                      guide = guide_axis(minor.ticks = TRUE)) +
   scale_y_continuous(limits = c(0, 1500), expand = c(0, 0)) + 
-  scale_linetype_manual(values = c(2, 1), name = "Treatment") + 
-  scale_alpha_manual(values = c(0.5, 1), name = "Treatment") + 
+  scale_linetype_manual(values = c(2, 1), name = "Treatment", labels = c("Control", "Johnson Creek")) + 
+  scale_alpha_manual(values = c(0.5, 1), name = "Treatment", , labels = c("Control", "Johnson Creek")) + 
   scale_color_viridis_d(name = "Population") + 
   xlab("Spawn year") + 
-  ylab("Natural origin spawner abundance")
+  ylab("NOSAij")
+
+#ggexport(nosa_raw_plot, filename = "figures/fig_5a_nosa_raw.jpeg", res = 300, width = 4000, height = 2500)
 
 #plot scaled NOSA for all streams
 nosa_scaled_plot <- ggplot(nosa, aes(x = year, y = nosa_scaled, group = waterbody)) + 
@@ -182,14 +190,16 @@ nosa_scaled_plot <- ggplot(nosa, aes(x = year, y = nosa_scaled, group = waterbod
                      expand = c(0, 0),
                      guide = guide_axis(minor.ticks = TRUE)) +
   scale_y_continuous(limits = c(-2, 3), expand = c(0, 0)) + 
-  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 1) + 
-  scale_linetype_manual(values = c(2, 1), name = "Treatment", labels = c("Control", "Treatment")) + 
-  scale_alpha_manual(values = c(0.6, 1), name = "Treatment", labels = c("Control", "Treatment")) + 
-  scale_color_manual(values = c("#5ec962", "#3b528b"), name = "Treatment", labels = c("Control", "Treatment")) + 
-  ylab("Scaled NOSA") + 
+  geom_hline(yintercept = 0, linewidth = 1) + 
+  scale_linetype_manual(values = c(2, 1), name = "Treatment", labels = c("Control", "Johnson Creek")) + 
+  scale_alpha_manual(values = c(0.6, 1), name = "Treatment", labels = c("Control", "Johnson Creek")) + 
+  scale_color_manual(values = c("#5ec962", "#3b528b"), name = "Treatment", labels = c("Control", "Johnson Creek")) + 
+  ylab("Scaled NOSAij") + 
   xlab("Year") + 
-  geom_vline(xintercept = 1998, linetype = "dashed", color = "grey30") + 
-  geom_vline(xintercept = 2006, linetype = "dashed", color = "grey30")
+  geom_vline(xintercept = 2000, linetype = "dashed", color = "grey30", linewidth = 1) + 
+  geom_vline(xintercept = 2006, linetype = "dashed", color = "grey30", linewidth = 1)
+
+#ggexport(nosa_scaled_plot, filename = "figures/fig_5b_v1_nosa_scaled.jpeg", res = 300, width = 4000, height = 2500)
 
 #scaled NOSA with points and median
 nosa_scaled_plot_2 <- ggplot(nosa, aes(x = year, y = nosa_scaled, group = waterbody)) + 
@@ -205,9 +215,10 @@ nosa_scaled_plot_2 <- ggplot(nosa, aes(x = year, y = nosa_scaled, group = waterb
   scale_color_manual(values = c("#5ec962", "#3b528b"), name = "Treatment", labels = c("Control", "Johnson Creek")) + 
   ylab("Scaled NOSA") + 
   xlab("Year") + 
-  geom_vline(xintercept = 1998, linetype = "dashed", color = "grey30", linewidth = 1) + 
+  geom_vline(xintercept = 2000, linetype = "dashed", color = "grey30", linewidth = 1) + 
   geom_vline(xintercept = 2006, linetype = "dashed", color = "grey30", linewidth = 1)
 
+#ggexport(nosa_scaled_plot_2, filename = "figures/fig_5b_v2_nosa_scaled.jpeg", res = 300, width = 4000, height = 2500)
 ```
 
 
